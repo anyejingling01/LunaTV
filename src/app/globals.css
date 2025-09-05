@@ -27,6 +27,7 @@ body {
 
 body {
   color: rgb(var(--foreground-rgb));
+  transition: background-color 0.3s ease;
 }
 
 html:not(.dark) body {
@@ -103,71 +104,25 @@ html:not(.dark) body {
   display: none; /* Chrome, Safari, Opera */
 }
 
-/* 改进的主题切换动画 */
-/* View Transitions API 动画 */
-@keyframes scale-opacity-transition {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(0.95);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+/* 简化的主题切换过渡效果 */
+.theme-transition {
+  transition: all 0.3s ease;
 }
 
-@keyframes smooth-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* 主题切换按钮动画 */
+.theme-toggle-button {
+  transition: all 0.2s ease-in-out;
 }
 
-@keyframes smooth-fade-out {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(10px);
-  }
+.theme-toggle-button:hover {
+  transform: scale(1.1);
 }
 
-/* 应用更平滑的过渡到所有可过渡元素 */
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, fill 0.3s ease;
-}
-
-/* 主题切换按钮图标动画 */
 .theme-toggle-icon {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease-in-out;
 }
 
-/* View Transitions API 设置 */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.6s;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  animation-fill-mode: both;
-  height: 100vh;
-}
-
-::view-transition-old(root) {
-  animation-name: smooth-fade-out;
-}
-
-::view-transition-new(root) {
-  animation-name: smooth-fade-in;
-}
+/* 移除复杂的 View Transitions API 动画 */
 
 /* 强制播放器内部的 video 元素高度为 100%，并保持内容完整显示 */
 div[data-media-provider] video {
