@@ -45,7 +45,7 @@ export function ThemeToggle() {
     const targetTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
     setThemeColor(targetTheme);
 
-
+    // 使用更平滑的过渡效果
     if (!(document as any).startViewTransition) {
       setTheme(targetTheme);
       return;
@@ -59,15 +59,13 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className='w-10 h-10 p-2 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200/50 dark:text-gray-300 dark:hover:bg-gray-700/50 transition-colors'
+      className='w-10 h-10 p-2 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200/50 dark:text-gray-300 dark:hover:bg-gray-700/50 transition-all duration-300 ease-in-out transform hover:scale-110'
       aria-label='Toggle theme'
     >
       {resolvedTheme === 'dark' ? (
-
-
-        <Sun className='w-full h-full' />
+        <Sun className='w-full h-full theme-toggle-icon' />
       ) : (
-        <Moon className='w-full h-full' />
+        <Moon className='w-full h-full theme-toggle-icon' />
       )}
     </button>
   );

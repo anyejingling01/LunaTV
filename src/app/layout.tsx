@@ -108,13 +108,13 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} min-h-screen bg-white text-gray-900 dark:bg-black dark:text-gray-200`}
+        className={`${inter.className} min-h-screen bg-white text-gray-900 dark:bg-black dark:text-gray-200 transition-colors duration-300`}
       >
         <ThemeProvider
           attribute='class'
           defaultTheme='dark'
           enableSystem
-          disableTransitionOnChange
+          disableTransitionOnChange={false}
         >
           <SiteProvider siteName={siteName} announcement={announcement}>
             {children}
