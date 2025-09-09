@@ -64,6 +64,18 @@ export interface AdminConfig {
     channelNumber?: number;
     disabled?: boolean;
   }[];
+  CloudDiskConfig?: {
+    enabled: boolean;
+    apiUrl: string;
+    name: string;
+  };
+  AIConfig?: {
+    enabled: boolean;
+    apiUrl: string;
+    apiKey: string;
+    model: string;
+    customModel?: string;
+  };
 }
 
 export interface AdminConfigResult {
