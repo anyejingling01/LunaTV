@@ -197,6 +197,10 @@ async function getInitConfig(configFile: string, subConfig: {
   } catch (e) {
     cfgFile = {} as ConfigFileStruct;
   }
+
+  // 在初始化之前，先获取旧的配置
+  const oldConfig = await db.getAdminConfig();
+
   const adminConfig: AdminConfig = {
     ConfigFile: configFile,
     ConfigSubscribtion: subConfig,
@@ -234,6 +238,11 @@ async function getInitConfig(configFile: string, subConfig: {
       name: '网盘',
     },
   };
+
+  // 如果旧配置中存在YouTubeChannels，则保留
+  if (oldConfig && (oldConfig as any).YouTubeChannels) {
+    (adminConfig as any).YouTubeChannels = (oldConfig as any).YouTubeChannels;
+  }
 
   // 补充用户信息
   let userNames: string[] = [];
@@ -374,6 +383,15 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
       model: 'gpt-3.5-turbo',
       customModel: '',
     };
+  }
+
+  // 确保 YouTubeChannels 字段存在，但不重置已有数据
+  if (!(adminConfig as any).YouTubeChannels) {
+    (adminConfig as any).YouTubeChannels = [];
+  } else if (!Array.isArray((adminConfig as any).YouTubeChannels)) {
+    // 如果存在但不是数组，尝试修复而不是重置
+    console.warn('YouTubeChannels字段存在但不是数组，尝试修复:', (adminConfig as any).YouTubeChannels);
+    (adminConfig as any).YouTubeChannels = [];
   }
 
   // 站长变更自检

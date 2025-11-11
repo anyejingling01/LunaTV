@@ -35,9 +35,11 @@ import {
   FileText,
   FolderOpen,
   Settings,
+  Trash2,
   Tv,
   Users,
   Video,
+  Youtube,
 } from 'lucide-react';
 import { GripVertical } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
@@ -55,7 +57,7 @@ const buttonStyles = {
   // 主要操作按钮（蓝色）- 用于配置、设置、确认等
   primary: 'px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors',
   // 成功操作按钮（绿色）- 用于添加、启用、保存等
-  success: 'px-3 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded-lg transition-colors',
+  success: 'px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors',
   // 危险操作按钮（红色）- 用于删除、禁用、重置等
   danger: 'px-3 py-1.5 text-sm font-medium bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white rounded-lg transition-colors',
   // 次要操作按钮（灰色）- 用于取消、关闭等
@@ -65,7 +67,7 @@ const buttonStyles = {
   // 小尺寸主要按钮
   primarySmall: 'px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-md transition-colors',
   // 小尺寸成功按钮
-  successSmall: 'px-2 py-1 text-xs font-medium bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded-md transition-colors',
+  successSmall: 'px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-md transition-colors',
   // 小尺寸危险按钮
   dangerSmall: 'px-2 py-1 text-xs font-medium bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white rounded-md transition-colors',
   // 小尺寸次要按钮
@@ -83,7 +85,7 @@ const buttonStyles = {
   disabled: 'px-3 py-1.5 text-sm font-medium bg-gray-400 dark:bg-gray-600 cursor-not-allowed text-white rounded-lg transition-colors',
   disabledSmall: 'px-2 py-1 text-xs font-medium bg-gray-400 dark:bg-gray-600 cursor-not-allowed text-white rounded-md transition-colors',
   // 开关按钮样式
-  toggleOn: 'bg-green-600 dark:bg-green-600',
+  toggleOn: 'bg-blue-600 dark:bg-blue-600',
   toggleOff: 'bg-gray-200 dark:bg-gray-700',
   toggleThumb: 'bg-white',
   toggleThumbOn: 'translate-x-6',
@@ -346,9 +348,10 @@ interface UserConfigProps {
   config: AdminConfig | null;
   role: 'owner' | 'admin' | null;
   refreshConfig: () => Promise<void>;
+  setConfig: React.Dispatch<React.SetStateAction<AdminConfig | null>>;
 }
 
-const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
+const UserConfig = ({ config, role, refreshConfig, setConfig }: UserConfigProps) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
   const { isLoading, withLoading } = useLoadingState();
   const [showAddUserForm, setShowAddUserForm] = useState(false);
@@ -805,6 +808,19 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   role="switch"
                   aria-checked={config.UserConfig.AllowRegister}
                   onClick={async () => {
+                    // 乐观更新：立即更新UI状态
+                    const previousValue = config.UserConfig.AllowRegister;
+                    const newValue = !previousValue;
+
+                    // 立即更新本地状态
+                    setConfig(prev => ({
+                      ...prev!,
+                      UserConfig: {
+                        ...prev!.UserConfig,
+                        AllowRegister: newValue
+                      }
+                    }));
+
                     await withLoading('toggleAllowRegister', async () => {
                       try {
                         const response = await fetch('/api/admin/config', {
@@ -814,23 +830,30 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                             ...config,
                             UserConfig: {
                               ...config.UserConfig,
-                              AllowRegister: !config.UserConfig.AllowRegister
+                              AllowRegister: newValue
                             }
                           })
                         });
 
                         if (response.ok) {
-                          await refreshConfig();
                           showAlert({
                             type: 'success',
                             title: '设置已更新',
-                            message: config.UserConfig.AllowRegister ? '已禁止用户注册' : '已允许用户注册',
+                            message: newValue ? '已允许用户注册' : '已禁止用户注册',
                             timer: 2000
                           });
                         } else {
                           throw new Error('更新配置失败');
                         }
                       } catch (err) {
+                        // 发生错误时回滚状态
+                        setConfig(prev => ({
+                          ...prev!,
+                          UserConfig: {
+                            ...prev!.UserConfig,
+                            AllowRegister: previousValue
+                          }
+                        }));
                         showError(err instanceof Error ? err.message : '操作失败', showAlert);
                       }
                     });
@@ -866,6 +889,20 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   role="switch"
                   aria-checked={(config as any).UserConfig.RequireApproval}
                   onClick={async () => {
+                    // 乐观更新：立即更新UI状态
+                    const previousValue = (config as any).UserConfig.RequireApproval;
+                    const newValue = !previousValue;
+
+                    // 立即更新本地状态
+                    setConfig(prev => ({
+                      ...prev!,
+                      UserConfig: {
+                        ...prev!.UserConfig,
+                        RequireApproval: newValue,
+                        PendingUsers: (prev!.UserConfig as any).PendingUsers || [],
+                      }
+                    }));
+
                     await withLoading('toggleRequireApproval', async () => {
                       try {
                         const response = await fetch('/api/admin/config', {
@@ -875,23 +912,31 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                             ...config,
                             UserConfig: {
                               ...config.UserConfig,
-                              RequireApproval: !(config as any).UserConfig.RequireApproval,
+                              RequireApproval: newValue,
                               PendingUsers: (config as any).UserConfig.PendingUsers || [],
                             }
                           })
                         });
                         if (response.ok) {
-                          await refreshConfig();
                           showAlert({
                             type: 'success',
                             title: '设置已更新',
-                            message: (config as any).UserConfig.RequireApproval ? '已关闭注册审核' : '已开启注册审核',
+                            message: newValue ? '已开启注册审核' : '已关闭注册审核',
                             timer: 2000
                           });
                         } else {
                           throw new Error('更新配置失败');
                         }
                       } catch (err) {
+                        // 发生错误时回滚状态
+                        setConfig(prev => ({
+                          ...prev!,
+                          UserConfig: {
+                            ...prev!.UserConfig,
+                            RequireApproval: previousValue,
+                            PendingUsers: (prev!.UserConfig as any).PendingUsers || [],
+                          }
+                        }));
                         showError(err instanceof Error ? err.message : '操作失败', showAlert);
                       }
                     });
@@ -1148,7 +1193,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   onChange={(e) =>
                     setNewUser((prev) => ({ ...prev, username: e.target.value }))
                   }
-                  className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+                  className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
                 />
                 <input
                   type='password'
@@ -1157,7 +1202,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   onChange={(e) =>
                     setNewUser((prev) => ({ ...prev, password: e.target.value }))
                   }
-                  className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+                  className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
                 />
               </div>
               <div>
@@ -1169,7 +1214,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   onChange={(e) =>
                     setNewUser((prev) => ({ ...prev, userGroup: e.target.value }))
                   }
-                  className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+                  className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
                 >
                   <option value=''>无用户组（无限制）</option>
                   {userGroups.map((group) => (
@@ -1381,7 +1426,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                         <td className='px-6 py-4 whitespace-nowrap'>
                           <span
                             className={`px-2 py-1 text-xs rounded-full ${!user.banned
-                              ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+                              ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
                               : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300'
                               }`}
                           >
@@ -2518,7 +2563,7 @@ const VideoSourceConfig = ({
       case 'valid':
         return {
           text: '有效',
-          className: 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300',
+          className: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300',
           icon: '✓',
           message: result.message
         };
@@ -2594,7 +2639,7 @@ const VideoSourceConfig = ({
         <td className='px-6 py-4 whitespace-nowrap max-w-[1rem]'>
           <span
             className={`px-2 py-1 text-xs rounded-full ${!source.disabled
-              ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+              ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
               : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300'
               }`}
           >
@@ -3190,7 +3235,7 @@ const CategoryConfig = ({
         <td className='px-6 py-4 whitespace-nowrap max-w-[1rem]'>
           <span
             className={`px-2 py-1 text-xs rounded-full ${!category.disabled
-              ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+              ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
               : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300'
               }`}
           >
@@ -3493,7 +3538,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               onChange={(e) => setSubscriptionUrl(e.target.value)}
               placeholder='https://example.com/config.json'
               disabled={false}
-              className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 shadow-sm hover:border-gray-400 dark:hover:border-gray-500'
+              className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:border-gray-400 dark:hover:border-gray-500'
             />
             <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
               输入配置文件的订阅地址，要求 JSON 格式，且使用 Base58 编码
@@ -3507,7 +3552,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               disabled={isLoading('fetchConfig') || !subscriptionUrl.trim()}
               className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${isLoading('fetchConfig') || !subscriptionUrl.trim()
                 ? buttonStyles.disabled
-                : buttonStyles.success
+                : buttonStyles.primary
                 }`}
             >
               {isLoading('fetchConfig') ? (
@@ -3535,7 +3580,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               type='button'
               onClick={() => setAutoUpdate(!autoUpdate)}
               disabled={false}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${autoUpdate
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${autoUpdate
                 ? buttonStyles.toggleOn
                 : buttonStyles.toggleOff
                 }`}
@@ -3673,7 +3718,7 @@ const CloudDiskConfigComponent = ({ config, refreshConfig }: { config: AdminConf
             <button
               type='button'
               onClick={() => setCloudDiskSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${cloudDiskSettings.enabled ? buttonStyles.toggleOn : buttonStyles.toggleOff
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${cloudDiskSettings.enabled ? buttonStyles.toggleOn : buttonStyles.toggleOff
                 }`}
             >
               <span
@@ -3693,7 +3738,7 @@ const CloudDiskConfigComponent = ({ config, refreshConfig }: { config: AdminConf
               value={cloudDiskSettings.apiUrl}
               onChange={(e) => setCloudDiskSettings(prev => ({ ...prev, apiUrl: e.target.value }))}
               placeholder='https://so.252035.xyz'
-              className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
             />
             <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
               网盘搜索API的部署：
@@ -3718,7 +3763,7 @@ const CloudDiskConfigComponent = ({ config, refreshConfig }: { config: AdminConf
               value={cloudDiskSettings.name}
               onChange={(e) => setCloudDiskSettings(prev => ({ ...prev, name: e.target.value }))}
               placeholder='网盘'
-              className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
             />
             <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
               在导航栏中显示的名称
@@ -3936,7 +3981,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
           onChange={(e) =>
             setSiteSettings((prev) => ({ ...prev, SiteName: e.target.value }))
           }
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
 
@@ -3956,7 +4001,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
             }))
           }
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
 
@@ -3973,7 +4018,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
             <button
               type='button'
               onClick={() => setIsDoubanDropdownOpen(!isDoubanDropdownOpen)}
-              className="w-full px-3 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 text-left"
+              className="w-full px-3 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 text-left"
             >
               {
                 doubanDataSourceOptions.find(
@@ -4002,13 +4047,13 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                       setIsDoubanDropdownOpen(false);
                     }}
                     className={`w-full px-3 py-2.5 text-left text-sm transition-colors duration-150 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 ${siteSettings.DoubanProxyType === option.value
-                      ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
                       : 'text-gray-900 dark:text-gray-100'
                       }`}
                   >
                     <span className='truncate'>{option.label}</span>
                     {siteSettings.DoubanProxyType === option.value && (
-                      <Check className='w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 ml-2' />
+                      <Check className='w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 ml-2' />
                     )}
                   </button>
                 ))}
@@ -4059,7 +4104,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                   DoubanProxy: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm hover:border-gray-400 dark:hover:border-gray-500"
+              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm hover:border-gray-400 dark:hover:border-gray-500"
             />
             <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
               自定义代理服务器地址
@@ -4085,7 +4130,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                   !isDoubanImageProxyDropdownOpen
                 )
               }
-              className="w-full px-3 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 text-left"
+              className="w-full px-3 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 text-left"
             >
               {
                 doubanImageProxyTypeOptions.find(
@@ -4171,7 +4216,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                   DoubanImageProxy: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm hover:border-gray-400 dark:hover:border-gray-500"
+              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm hover:border-gray-400 dark:hover:border-gray-500"
             />
             <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
               自定义图片代理服务器地址
@@ -4195,7 +4240,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               SearchDownstreamMaxPage: Number(e.target.value),
             }))
           }
-          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
         />
       </div>
 
@@ -4214,7 +4259,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               SiteInterfaceCacheTime: Number(e.target.value),
             }))
           }
-          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
         />
       </div>
 
@@ -4234,7 +4279,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                 DisableYellowFilter: !prev.DisableYellowFilter,
               }))
             }
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.DisableYellowFilter
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${siteSettings.DisableYellowFilter
               ? buttonStyles.toggleOn
               : buttonStyles.toggleOff
               }`}
@@ -4268,7 +4313,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                 FluidSearch: !prev.FluidSearch,
               }))
             }
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.FluidSearch
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${siteSettings.FluidSearch
               ? buttonStyles.toggleOn
               : buttonStyles.toggleOff
               }`}
@@ -4294,7 +4339,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
           disabled={isLoading('saveSiteConfig')}
           className={`px-4 py-2 ${isLoading('saveSiteConfig')
             ? buttonStyles.disabled
-            : buttonStyles.success
+            : buttonStyles.primary
             } rounded-lg transition-colors`}
         >
           {isLoading('saveSiteConfig') ? '保存中…' : '保存'}
@@ -4551,7 +4596,7 @@ const LiveSourceConfig = ({
         <td className='px-6 py-4 whitespace-nowrap max-w-[1rem]'>
           <span
             className={`px-2 py-1 text-xs rounded-full ${!liveSource.disabled
-              ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+              ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
               : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300'
               }`}
           >
@@ -4868,6 +4913,557 @@ const LiveSourceConfig = ({
   );
 };
 
+// 可拖拽的频道项组件
+const DraggableChannelItem = ({
+  channel,
+  onDelete,
+  isDeleting,
+}: {
+  channel: { id: string; name: string; channelId: string; addedAt: string; sortOrder: number };
+  onDelete: (id: string) => void;
+  isDeleting: boolean;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: channel.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className='flex items-center justify-between p-2 sm:p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg'
+    >
+      <div className='flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0'>
+        <div
+          {...attributes}
+          {...listeners}
+          style={{ touchAction: 'none' }}
+          className='cursor-grab active:cursor-grabbing p-2 sm:p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded'
+        >
+          <GripVertical className='w-5 h-5 sm:w-4 sm:h-4 text-gray-400' />
+        </div>
+        <Youtube className='w-5 h-5 text-red-500 flex-shrink-0' />
+        <div className='flex-1 min-w-0'>
+          <div className='text-sm font-medium text-gray-900 dark:text-gray-100 truncate'>
+            {channel.name}
+          </div>
+          <div className='text-xs text-gray-500 dark:text-gray-400 truncate'>
+            {channel.channelId}
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={() => onDelete(channel.id)}
+        disabled={isDeleting}
+        className='text-red-600 hover:text-red-700 disabled:text-red-400 p-2 sm:p-1 ml-2 flex-shrink-0 touch-manipulation'
+        title='删除频道'
+      >
+        <Trash2 className='w-5 h-5 sm:w-4 sm:h-4' />
+      </button>
+    </div>
+  );
+};
+
+// YouTube频道配置组件
+const YouTubeChannelConfig = ({
+  config,
+  refreshConfig,
+}: {
+  config: AdminConfig | null;
+  refreshConfig: () => Promise<void>;
+}) => {
+  const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
+  const [channels, setChannels] = useState<{ id: string; name: string; channelId: string; addedAt: string; sortOrder: number }[]>([]);
+  const [newChannelId, setNewChannelId] = useState('');
+  const [newChannelName, setNewChannelName] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [orderChanged, setOrderChanged] = useState(false);
+
+  // 拖拽传感器配置
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    })
+  );
+  const [parseResult, setParseResult] = useState<{
+    channelId: string;
+    playlistId: string;
+    channelInfo?: {
+      title: string;
+      description: string;
+      thumbnail: string;
+      subscriberCount: string;
+      videoCount: string;
+    };
+    latestVideos?: any[];
+  } | null>(null);
+
+  // 获取YouTube频道列表
+  const fetchChannels = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      const response = await fetch('/api/youtube-channels');
+      if (!response.ok) {
+        throw new Error('获取频道列表失败');
+      }
+      const data = await response.json();
+      setChannels(data.channels || []);
+      setOrderChanged(false);
+    } catch (error) {
+      showAlert({
+        type: 'error',
+        title: '错误',
+        message: error instanceof Error ? error.message : '获取频道列表失败'
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // 解析频道信息
+  const handleParseChannel = async () => {
+    if (!newChannelId.trim()) {
+      showAlert({
+        type: 'warning',
+        title: '提示',
+        message: '请输入YouTube频道链接、@用户名或频道ID',
+        timer: 2000
+      });
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      return;
+    }
+
+    await withLoading('parseChannel', async () => {
+      try {
+        const response = await fetch('/api/youtube-channel-parser', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            input: newChannelId.trim()
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || '解析频道失败');
+        }
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          // 保存解析结果
+          setParseResult(result.data);
+
+          // 自动填充解析到的频道ID
+          setNewChannelId(result.data.channelId);
+
+          // 如果获取到频道信息，自动填充频道名称
+          if (result.data.channelInfo && result.data.channelInfo.title) {
+            setNewChannelName(result.data.channelInfo.title);
+          }
+
+          let message = `已解析出频道ID: ${result.data.channelId}\n播放列表ID: ${result.data.playlistId}`;
+          if (result.data.channelInfo) {
+            message += `\n频道名称: ${result.data.channelInfo.title}`;
+            if (result.data.latestVideos && result.data.latestVideos.length > 0) {
+              message += `\n获取到 ${result.data.latestVideos.length} 个最新视频`;
+            }
+          }
+
+          showAlert({
+            type: 'success',
+            title: '解析成功',
+            message,
+            timer: 2000
+          });
+        } else {
+          throw new Error('解析结果无效');
+        }
+      } catch (error) {
+        showAlert({
+          type: 'error',
+          title: '解析失败',
+          message: error instanceof Error ? error.message : '解析频道失败',
+          timer: 2000
+        });
+      }
+    });
+  };
+
+  // 添加频道
+  const handleAddChannel = async () => {
+    if (!newChannelId.trim()) {
+      showAlert({
+        type: 'warning',
+        title: '提示',
+        message: '请输入频道ID',
+        timer: 2000
+      });
+      // 2秒后自动刷新网页
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      return;
+    }
+
+    if (!newChannelName.trim()) {
+      showAlert({
+        type: 'warning',
+        title: '提示',
+        message: '请输入频道名称',
+        timer: 2000
+      });
+      // 2秒后自动刷新网页
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      return;
+    }
+
+    await withLoading('addChannel', async () => {
+      try {
+        const response = await fetch('/api/youtube-channels', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: newChannelName.trim(),
+            channelId: newChannelId.trim()
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || '添加频道失败');
+        }
+
+        setNewChannelId('');
+        setNewChannelName('');
+        setParseResult(null); // 清除解析结果
+        await fetchChannels();
+        // 移除成功弹窗，直接刷新频道列表
+      } catch (error) {
+        showAlert({
+          type: 'error',
+          title: '错误',
+          message: error instanceof Error ? error.message : '添加频道失败'
+        });
+      }
+    });
+  };
+
+  // 删除频道
+  const handleDeleteChannel = async (channelId: string) => {
+    await withLoading('deleteChannel', async () => {
+      try {
+        const response = await fetch(`/api/youtube-channels?id=${channelId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || '删除频道失败');
+        }
+
+        await fetchChannels();
+        // 移除成功弹窗，直接刷新频道列表
+      } catch (error) {
+        showAlert({
+          type: 'error',
+          title: '错误',
+          message: error instanceof Error ? error.message : '删除频道失败'
+        });
+      }
+    });
+  };
+
+  // 初始化加载
+  // 拖动排序处理
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = channels.findIndex((c) => c.id === active.id);
+    const newIndex = channels.findIndex((c) => c.id === over.id);
+
+    const newChannels = arrayMove(channels, oldIndex, newIndex);
+    // 更新sortOrder
+    const updatedChannels = newChannels.map((channel, index) => ({
+      ...channel,
+      sortOrder: index
+    }));
+
+    setChannels(updatedChannels);
+    setOrderChanged(true);
+  };
+
+  // 保存排序
+  const handleSaveOrder = async () => {
+    await withLoading('saveChannelOrder', async () => {
+      try {
+        const response = await fetch('/api/youtube-channels', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            channels: channels
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || '保存排序失败');
+        }
+
+        setOrderChanged(false);
+        showAlert({
+          type: 'success',
+          title: '成功',
+          message: '频道排序已保存',
+          timer: 2000
+        });
+      } catch (error) {
+        showAlert({
+          type: 'error',
+          title: '错误',
+          message: error instanceof Error ? error.message : '保存排序失败'
+        });
+      }
+    });
+  };
+
+  useEffect(() => {
+    fetchChannels();
+  }, [fetchChannels]);
+
+  return (
+    <div className='space-y-4'>
+      {/* 添加频道表单 */}
+      <div className='bg-gray-50 dark:bg-gray-800 p-4 rounded-lg'>
+        <h3 className='text-sm font-medium text-gray-900 dark:text-gray-100 mb-3'>
+          添加YouTube频道
+        </h3>
+        <div className='space-y-3'>
+          <div className='flex gap-2'>
+            <input
+              type='text'
+              value={newChannelName}
+              onChange={(e) => setNewChannelName(e.target.value)}
+              placeholder='输入频道名称'
+              className='flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400'
+            />
+          </div>
+          <div className='space-y-2'>
+            <div className='flex flex-col sm:flex-row gap-2'>
+              <input
+                type='text'
+                value={newChannelId}
+                onChange={(e) => {
+                  setNewChannelId(e.target.value);
+                  // 当输入内容改变时清除解析结果
+                  if (parseResult) {
+                    setParseResult(null);
+                  }
+                }}
+                placeholder='输入YouTube频道链接、@用户名或频道ID'
+                className='flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400'
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleParseChannel();
+                  }
+                }}
+              />
+              <button
+                onClick={handleParseChannel}
+                disabled={isLoading('parseChannel')}
+                className='w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg transition-colors whitespace-nowrap'
+              >
+                {isLoading('parseChannel') ? '解析中...' : '解析频道'}
+              </button>
+            </div>
+            <div className='text-xs text-gray-500 dark:text-gray-400'>
+              使用UC频道ID可以直接添加，如果使用频道主页链接或者频道主ID需要先解析为UC ID
+            </div>
+            <div className='flex flex-col sm:flex-row gap-2'>
+              <button
+                onClick={handleAddChannel}
+                disabled={isLoading('addChannel') || !newChannelId.trim() || !newChannelName.trim()}
+                className='w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors whitespace-nowrap'
+              >
+                {isLoading('addChannel') ? '添加中...' : '添加频道'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 解析结果显示 */}
+      {parseResult && (
+        <div className='bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800'>
+          <h3 className='text-sm font-medium text-blue-900 dark:text-blue-100 mb-3'>
+            解析结果预览
+          </h3>
+          <div className='space-y-3'>
+            {/* 频道基本信息 */}
+            {parseResult.channelInfo && (
+              <div className='flex items-start gap-3'>
+                {parseResult.channelInfo.thumbnail && (
+                  <img
+                    src={parseResult.channelInfo.thumbnail}
+                    alt={parseResult.channelInfo.title}
+                    className='w-16 h-16 rounded-full object-cover'
+                  />
+                )}
+                <div className='flex-1 min-w-0'>
+                  <h4 className='font-medium text-gray-900 dark:text-gray-100 truncate'>
+                    {parseResult.channelInfo.title}
+                  </h4>
+                  <div className='text-sm text-gray-600 dark:text-gray-400 space-y-1'>
+                    <div>频道ID: {parseResult.channelId}</div>
+                    <div>播放列表ID: {parseResult.playlistId}</div>
+                    {parseResult.channelInfo.subscriberCount && (
+                      <div>订阅者: {parseInt(parseResult.channelInfo.subscriberCount).toLocaleString()}</div>
+                    )}
+                    {parseResult.channelInfo.videoCount && (
+                      <div>视频数量: {parseInt(parseResult.channelInfo.videoCount).toLocaleString()}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 最新视频 */}
+            {parseResult.latestVideos && parseResult.latestVideos.length > 0 && (
+              <div>
+                <h5 className='text-sm font-medium text-gray-900 dark:text-gray-100 mb-2'>
+                  最新视频 ({parseResult.latestVideos.length})
+                </h5>
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'>
+                  {parseResult.latestVideos.map((video, index) => (
+                    <div key={index} className='bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700'>
+                      {video.snippet.thumbnails?.medium?.url && (
+                        <img
+                          src={video.snippet.thumbnails.medium.url}
+                          alt={video.snippet.title}
+                          className='w-full h-20 object-cover rounded mb-2'
+                        />
+                      )}
+                      <h6 className='text-xs font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-1'>
+                        {video.snippet.title}
+                      </h6>
+                      <p className='text-xs text-gray-600 dark:text-gray-400'>
+                        {new Date(video.snippet.publishedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className='flex gap-2 pt-2'>
+              <button
+                onClick={() => setParseResult(null)}
+                className='px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors'
+              >
+                清除预览
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 频道列表 */}
+      <div className='space-y-2'>
+        <div className='flex items-center justify-between'>
+          <h3 className='text-sm font-medium text-gray-900 dark:text-gray-100'>
+            已配置频道 ({channels.length})
+          </h3>
+          <div className='flex items-center gap-2'>
+            {orderChanged && (
+              <button
+                onClick={handleSaveOrder}
+                disabled={isLoading('saveChannelOrder')}
+                className='px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded transition-colors'
+              >
+                {isLoading('saveChannelOrder') ? '保存中...' : '保存排序'}
+              </button>
+            )}
+            <button
+              onClick={fetchChannels}
+              disabled={isRefreshing}
+              className='text-sm text-blue-600 hover:text-blue-700 disabled:text-blue-400'
+            >
+              {isRefreshing ? '刷新中...' : '刷新'}
+            </button>
+          </div>
+        </div>
+
+        {channels.length === 0 ? (
+          <div className='text-center py-8 text-gray-500 dark:text-gray-400'>
+            暂无配置的YouTube频道
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          >
+            <SortableContext items={channels.map(c => c.id)} strategy={verticalListSortingStrategy}>
+              <div className='space-y-2'>
+                {channels.map((channel) => (
+                  <DraggableChannelItem
+                    key={channel.id}
+                    channel={channel}
+                    onDelete={handleDeleteChannel}
+                    isDeleting={isLoading('deleteChannel')}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
+
+      {/* 通用弹窗组件 */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={hideAlert}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        timer={alertModal.timer}
+        showConfirm={alertModal.showConfirm}
+      />
+    </div>
+  );
+};
+
 function AdminPageClient() {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
   const { isLoading, withLoading } = useLoadingState();
@@ -4884,6 +5480,7 @@ function AdminPageClient() {
     aiConfig: false,
     categoryConfig: false,
     cloudDiskConfig: false,
+    youtubeChannels: false,
     configFile: false,
     dataMigration: false,
   });
@@ -4954,7 +5551,7 @@ function AdminPageClient() {
 
   if (loading) {
     return (
-      <PageLayout activePath='/admin'>
+      <PageLayout>
         <div className='px-2 sm:px-10 py-4 sm:py-8'>
           <div className='max-w-[95%] mx-auto'>
             <h1 className='text-2xl font-bold text-gray-900 dark:text-gray-100 mb-8'>
@@ -4980,7 +5577,7 @@ function AdminPageClient() {
   }
 
   return (
-    <PageLayout activePath='/admin'>
+    <PageLayout>
       <div className='px-2 sm:px-10 py-4 sm:py-8'>
         <div className='max-w-[95%] mx-auto'>
           {/* 标题 + 重置配置按钮 */}
@@ -5059,6 +5656,7 @@ function AdminPageClient() {
                 config={config}
                 role={role}
                 refreshConfig={fetchConfig}
+                setConfig={setConfig}
               />
             </CollapsibleTab>
 
@@ -5114,6 +5712,21 @@ function AdminPageClient() {
               onToggle={() => toggleTab('cloudDiskConfig')}
             >
               <CloudDiskConfigComponent config={config} refreshConfig={fetchConfig} />
+            </CollapsibleTab>
+
+            {/* YouTube频道配置标签 */}
+            <CollapsibleTab
+              title='YouTube频道配置'
+              icon={
+                <Youtube
+                  size={20}
+                  className='text-gray-600 dark:text-gray-400'
+                />
+              }
+              isExpanded={expandedTabs.youtubeChannels}
+              onToggle={() => toggleTab('youtubeChannels')}
+            >
+              <YouTubeChannelConfig config={config} refreshConfig={fetchConfig} />
             </CollapsibleTab>
 
             {/* 数据迁移标签 - 仅站长可见 */}

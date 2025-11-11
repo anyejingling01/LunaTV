@@ -656,7 +656,7 @@ function SearchPageClient() {
   };
 
   return (
-    <PageLayout activePath='/search'>
+    <PageLayout>
       <div className='px-4 sm:px-10 py-4 sm:py-8 overflow-visible mb-10'>
         {/* 搜索框 */}
         <div className='mb-8'>
@@ -671,7 +671,7 @@ function SearchPageClient() {
                 onFocus={handleInputFocus}
                 placeholder='搜索电影、电视剧...'
                 autoComplete="off"
-                className='w-full h-12 rounded-lg bg-gray-50/80 py-3 pl-10 pr-12 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white border border-gray-200/50 shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500 dark:focus:bg-gray-700 dark:border-gray-700'
+                className='w-full h-12 rounded-lg bg-gray-50/80 py-3 pl-10 pr-12 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white border border-gray-200/50 shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500 dark:focus:bg-gray-700 dark:border-gray-700'
               />
 
               {/* 清除按钮 */}
@@ -752,7 +752,7 @@ function SearchPageClient() {
                     />
                   )}
                 </div>
-                
+
                 {/* 开关控件行 */}
                 <div className='flex items-center justify-end gap-6'>
                   {/* 虚拟化开关 */}
@@ -769,7 +769,7 @@ function SearchPageClient() {
                       <div className='absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4'></div>
                     </div>
                   </label>
-                  
+
                   {/* 聚合开关 */}
                   <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
                     <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>聚合</span>
@@ -816,7 +816,7 @@ function SearchPageClient() {
                 ) : (
                   <div
                     key={`search-results-${viewMode}`}
-                    className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'
+                    className='justify-start grid grid-cols-2 gap-x-4 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'
                   >
                     {viewMode === 'agg'
                       ? filteredAggResults.map(([mapKey, group]) => {

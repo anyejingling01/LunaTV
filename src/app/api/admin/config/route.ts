@@ -97,13 +97,31 @@ export async function POST(request: NextRequest) {
 
     const partialConfig = await request.json();
 
-    // Safely deep merge AIConfig
+    // Safely deep merge all config sections
     const newConfig: AdminConfig = {
       ...currentConfig,
+      ...partialConfig,
+      // Ensure proper deep merge for nested objects
+      UserConfig: {
+        ...(currentConfig.UserConfig || {}),
+        ...(partialConfig.UserConfig || {}),
+      },
+      CloudDiskConfig: {
+        ...(currentConfig.CloudDiskConfig || {}),
+        ...(partialConfig.CloudDiskConfig || {}),
+      },
       AIConfig: {
         ...(currentConfig.AIConfig || {}),
         ...(partialConfig.AIConfig || {}),
       },
+      SiteConfig: {
+        ...(currentConfig.SiteConfig || {}),
+        ...(partialConfig.SiteConfig || {}),
+      },
+      // 确保YouTubeChannels字段不会在配置更新时丢失
+      YouTubeChannels: partialConfig.YouTubeChannels !== undefined
+        ? partialConfig.YouTubeChannels
+        : currentConfig.YouTubeChannels || [],
     };
 
     // 保存新配置
@@ -111,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     // 清除缓存，强制下次重新从数据库读取
     clearConfigCache();
-    
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('保存管理员配置失败:', error);

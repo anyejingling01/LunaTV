@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
       (u: any) => (u.username || '').trim().toLowerCase() === username.toLowerCase()
     );
     if (pending) {
-      return NextResponse.json({ error: '您的注册申请正在审核中' }, { status: 401 });
+      return NextResponse.json({ error: '您的注册申请正在审核中，请耐心等待管理员审批' }, { status: 401 });
     }
 
     // 可能是站长，直接读环境变量
@@ -167,6 +167,30 @@ export async function POST(req: NextRequest) {
         httpOnly: false, // PWA 需要客户端可访问
         secure: false, // 根据协议自动设置
       });
+
+      // 为新用户初始化统计数据，避免访问"我的观看"页面时被踢出登录
+      try {
+        const existingStats = await db.getUserStats(username);
+
+        // 如果用户统计数据不存在或是默认值，则初始化
+        if (!existingStats || (
+          existingStats.totalWatchTime === 0 &&
+          existingStats.totalMovies === 0 &&
+          existingStats.firstWatchDate === 0
+        )) {
+          console.log(`为用户 ${username} 初始化统计数据`);
+          // 使用正确的参数格式调用updateUserStats
+          await db.updateUserStats(username, {
+            watchTime: 0,
+            movieKey: 'init',
+            timestamp: Date.now(), // 设置为当前时间作为首次观看时间
+            isFullReset: true
+          });
+        }
+      } catch (error) {
+        console.error('初始化用户统计数据失败:', error);
+        // 不影响登录流程，继续执行
+      }
 
       return response;
     } else if (username === process.env.USERNAME) {
@@ -206,6 +230,30 @@ export async function POST(req: NextRequest) {
         httpOnly: false, // PWA 需要客户端可访问
         secure: false, // 根据协议自动设置
       });
+
+      // 为新用户初始化统计数据，避免访问"我的观看"页面时被踢出登录
+      try {
+        const existingStats = await db.getUserStats(username);
+
+        // 如果用户统计数据不存在或是默认值，则初始化
+        if (!existingStats || (
+          existingStats.totalWatchTime === 0 &&
+          existingStats.totalMovies === 0 &&
+          existingStats.firstWatchDate === 0
+        )) {
+          console.log(`为用户 ${username} 初始化统计数据`);
+          // 使用正确的参数格式调用updateUserStats
+          await db.updateUserStats(username, {
+            watchTime: 0,
+            movieKey: 'init',
+            timestamp: Date.now(), // 设置为当前时间作为首次观看时间
+            isFullReset: true
+          });
+        }
+      } catch (error) {
+        console.error('初始化用户统计数据失败:', error);
+        // 不影响登录流程，继续执行
+      }
 
       return response;
     } catch (err) {

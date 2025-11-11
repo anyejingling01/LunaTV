@@ -26,6 +26,14 @@ export interface Favorite {
   origin?: 'vod' | 'live';
 }
 
+// 用户统计数据结构
+export interface UserStats {
+  totalWatchTime: number; // 总观看时长（秒）
+  totalMovies: number; // 观看影片总数
+  firstWatchDate: number; // 首次观看时间戳
+  lastUpdateTime: number; // 最后更新时间戳
+}
+
 // 存储接口
 export interface IStorage {
   // 播放记录相关
@@ -81,6 +89,20 @@ export interface IStorage {
   deleteSkipConfig(userName: string, source: string, id: string): Promise<void>;
   getAllSkipConfigs(userName: string): Promise<{ [key: string]: SkipConfig }>;
 
+  // 弹幕配置相关
+  getDanmakuConfig(userName: string): Promise<DanmakuConfig | null>;
+  setDanmakuConfig(userName: string, config: DanmakuConfig): Promise<void>;
+  deleteDanmakuConfig(userName: string): Promise<void>;
+
+  // 用户统计数据相关
+  getUserStats(userName: string): Promise<UserStats | null>;
+  updateUserStats(userName: string, updateData: {
+    watchTime: number;
+    movieKey: string;
+    timestamp: number;
+  }): Promise<void>;
+  clearUserStats(userName: string): Promise<void>;
+
   // 数据清理相关
   clearAllData(): Promise<void>;
 }
@@ -128,9 +150,40 @@ export interface DoubanResult {
   list: DoubanItem[];
 }
 
-// 跳过片头片尾配置数据结构
+// 豆瓣详情数据结构（从 getDoubanDetails 返回的 data 字段）
+export interface DoubanDetail {
+  id: string;
+  title: string;
+  poster: string;
+  rate: string;
+  year: string;
+  directors?: string[];
+  screenwriters?: string[];
+  cast?: string[];
+  genres?: string[];
+  countries?: string[];
+  languages?: string[];
+  episodes?: number;
+  episode_length?: number;
+  first_aired?: string;
+  plot_summary?: string;
+  rating?: string; // 添加 rating 字段以兼容现有代码
+  summary?: string; // 添加 summary 字段以兼容现有代码
+}
+
+// 跳过片头片尾配置相关
 export interface SkipConfig {
   enable: boolean; // 是否启用跳过片头片尾
   intro_time: number; // 片头时间（秒）
   outro_time: number; // 片尾时间（秒）
+}
+
+// 弹幕配置相关
+export interface DanmakuConfig {
+  externalDanmuEnabled: boolean; // 外部弹幕是否开启
+  enabled?: boolean; // 弹幕是否开启
+  opacity?: number; // 弹幕透明度 (0-1)
+  fontSize?: number; // 弹幕字体大小
+  speed?: number; // 弹幕速度
+  area?: number; // 弹幕显示区域 (0-1)
 }
