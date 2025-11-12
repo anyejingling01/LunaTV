@@ -457,8 +457,9 @@
  "lives": {
     "Mursor": {
          "name": "Mursor",
-         "url": "https://sub.ottiptv.cc/iptv.m3u",
-        "ua": "okHttp/Mod-1.4.0.0"
+         "url": "https://fy.188766.xyz/?url=http://mursor.ottiptv.cc&mishitong=false&lunbo=false",
+         "ua": "okHttp/Mod-1.4.0.0",
+         "epg": "https://11.112114.xyz/pp.xml"
     }
   }
 }
