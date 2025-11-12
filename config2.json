@@ -11,11 +11,6 @@
       "name": "TV-360资源",
       "detail": "https://360zy.com"
     },
-    "ckzy": {
-      "api": "https://ckzy.me/api.php/provide/vod",
-      "name": "TV-CK资源",
-      "detail": "https://ckzy.me"
-    },
     "ukuapi": {
       "api": "https://api.ukuapi.com/api.php/provide/vod",
       "name": "TV-U酷资源",
