@@ -447,11 +447,6 @@
     "bdzy": {
       "name": "百度资源",
       "api": "https://api.apibdzy.com/api.php/provide/vod"
-    },
-    "souav": {
-      "name": "souav资源",
-      "api": "https://api.souavzy.vip/api.php/provide/vod",
-      "is_adult": true
     }
  },
  "lives": {
