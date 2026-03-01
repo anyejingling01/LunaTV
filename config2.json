@@ -215,8 +215,8 @@
     },
     "Mursor": {
          "name": "Mursor",
-         "url": "https://fy.188766.xyz/?url=http://mursor.ottiptv.cc&mishitong=false&lunbo=false",
-         "ua": "okHttp/Mod-1.4.0.0",
+         "url": "https://live.ottiptv.cc/iptv.m3u?userid=1853176620&sign=1d8c89f3e52c8b5b359976009f14c88f6860b13177c20365ffac59b543c211900faa1a51cd83a71c3b5f74836cd931fc1bfa8cc94857ed12b963b072ca710c7f5c5c1aa1f0315e&auth_token=b5a458c3ef2bfd70f192e1037488d7fa",
+         "ua": "okHttp/Mod-1.5.0.0",
          "epg": "https://11.112114.xyz/pp.xml"
     }
   }
